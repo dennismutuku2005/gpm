@@ -8,22 +8,15 @@
 
 ## Windows Installation and Setup
 
-### Using the Pre-compiled Binary
+Run PowerShell as **Administrator** and execute:
 
-1. **Download the Windows executable**:
-   * [Windows Binary (gpm-windows-amd64.exe)](https://github.com/dennismutuku2005/gpm/releases/latest/download/gpm-windows-amd64.exe)
-2. **Open PowerShell as Administrator**:
-   * Press Win + X and select Terminal (Admin) or Windows PowerShell (Admin).
-3. **Navigate to the folder where you downloaded the binary** (for example, your Downloads folder):
-   ```powershell
-   cd ~/Downloads
-   ```
-4. **Run the interactive setup**:
-   ```powershell
-   .\gpm-windows-amd64.exe setup
-   ```
-   * This utility will prompt you to confirm installation and specify the destination folder (defaulting to C:\Program Files\GPM). It copies the binary as gpm.exe, registers it in your system's PATH, and sets up the Windows service startup daemon.
-5. **Restart your PowerShell or Terminal session** to load the updated PATH.
+```powershell
+Invoke-WebRequest -Uri "https://github.com/dennismutuku2005/gpm/releases/latest/download/gpm-windows-amd64.exe" -OutFile "$HOME\Downloads\gpm-windows-amd64.exe"
+cd $HOME\Downloads
+.\gpm-windows-amd64.exe setup
+```
+
+*The setup utility copies `gpm.exe` to `C:\Program Files\GPM` (configurable), updates your system PATH, and configures the Windows startup service. Restart your PowerShell session after installation.*
 
 ---
 

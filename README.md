@@ -1,4 +1,3 @@
-# Go Process Manager (GPM)
 
 ![GPM Logo](assets/logo.png)
 

@@ -293,10 +293,22 @@ func (r *Runner) handleStartCommand(args []string) int {
 			parsedArgs = strings.Fields(*argsFlag)
 		}
 
+		// Resolve working directory to an absolute path
+		workingDir := *dirFlag
+		if workingDir == "" {
+			if wd, err := os.Getwd(); err == nil {
+				workingDir = wd
+			}
+		} else {
+			if absDir, err := filepath.Abs(workingDir); err == nil {
+				workingDir = absDir
+			}
+		}
+
 		targetCfg = &config.ProcessConfig{
 			Name:         name,
 			Command:      *cmdFlag,
-			Directory:    *dirFlag,
+			Directory:    workingDir,
 			Args:         parsedArgs,
 			Environment:  envMap,
 			AutoStart:    true,

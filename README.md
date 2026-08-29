@@ -4,14 +4,14 @@
 
 ---
 
-## 💻 Windows Installation & Setup
+## Windows Installation and Setup
 
-### Option A: Using the Pre-compiled Binary (Quickest)
+### Using the Pre-compiled Binary
 
 1. **Download the Windows executable**:
    * [Windows Binary (gpm-windows-amd64.exe)](https://github.com/dennismutuku2005/gpm/releases/latest/download/gpm-windows-amd64.exe)
 2. **Open PowerShell as Administrator**:
-   * Press `Win + X` and select **Terminal (Admin)** or **Windows PowerShell (Admin)**.
+   * Press Win + X and select Terminal (Admin) or Windows PowerShell (Admin).
 3. **Navigate to the folder where you downloaded the binary** (for example, your Downloads folder):
    ```powershell
    cd ~/Downloads
@@ -20,27 +20,14 @@
    ```powershell
    .\gpm-windows-amd64.exe setup
    ```
-   * *This utility will prompt you to confirm installation and specify the destination folder (defaulting to `C:\Program Files\GPM`). It copies the binary as `gpm.exe`, registers it in your system's `PATH`, and sets up the Windows service startup daemon.*
-5. **Restart your PowerShell or Terminal session** to load the updated `PATH`.
-
-### Option B: Build and Install from Source (Requires Go)
-
-1. **Clone the repository**:
-   ```powershell
-   git clone https://github.com/dennismutuku2005/gpm.git
-   cd gpm
-   ```
-2. **Run the installation script in PowerShell as Administrator**:
-   ```powershell
-   Set-ExecutionPolicy Bypass -Scope Process -Force
-   .\scripts\install-windows.ps1
-   ```
+   * This utility will prompt you to confirm installation and specify the destination folder (defaulting to C:\Program Files\GPM). It copies the binary as gpm.exe, registers it in your system's PATH, and sets up the Windows service startup daemon.
+5. **Restart your PowerShell or Terminal session** to load the updated PATH.
 
 ---
 
-## 🐧 Linux Installation & Setup
+## Linux Installation and Setup
 
-### Option A: Using the Pre-compiled Binary (Quickest)
+### Using the Pre-compiled Binary
 
 1. **Download the Linux binary**:
    ```bash
@@ -54,26 +41,13 @@
    ```bash
    sudo ./gpm-linux-amd64 setup
    ```
-   * *This utility will prompt you to confirm installation. It copies the binary to `/usr/local/bin/gpm` and registers the daemon automatically using systemd.*
-
-### Option B: Build and Install from Source (Requires Go)
-
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/dennismutuku2005/gpm.git
-   cd gpm
-   ```
-2. **Run the installation script**:
-   ```bash
-   chmod +x scripts/install-linux.sh
-   ./scripts/install-linux.sh
-   ```
+   * This utility will prompt you to confirm installation. It copies the binary to /usr/local/bin/gpm and registers the daemon automatically using systemd.
 
 ---
 
-## 🩺 Verifying the Installation
+## Verifying the Installation
 
-To verify that GPM has been installed and configured correctly, open a **new** terminal/PowerShell window and run the diagnostic tool:
+To verify that GPM has been installed and configured correctly, open a new terminal or PowerShell window and run the diagnostic tool:
 
 ```bash
 gpm doctor
@@ -88,9 +62,9 @@ This will run checks on:
 
 ---
 
-## 🚀 CLI Commands & Usage
+## CLI Commands and Usage
 
-Once installed, use `gpm` to start and manage background processes:
+Once installed, use gpm to start and manage background processes:
 
 ### Management Commands
 
@@ -107,8 +81,8 @@ Once installed, use `gpm` to start and manage background processes:
 | `gpm disable <name>` | Disables process autostart on system boot. | `gpm disable my-api` |
 | `gpm shutdown` | Gracefully terminates all processes and stops daemon. | `gpm shutdown` |
 
-### Alternative Go Installation Method
-If you have Go installed on your machine and prefer using Go tools:
-```bash
-go install github.com/dennismutuku2005/gpm/cmd/gpm@latest
-```
+---
+
+## License
+
+This project is licensed under the GPM Non-Commercial License. See the LICENSE file for details.

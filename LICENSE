@@ -1,0 +1,23 @@
+GPM NON-COMMERCIAL LICENSE (GPM-NCL)
+
+Version 1.0, August 2026
+
+1. Definitions
+"Software" refers to the Go Process Manager (GPM) software (including source code, binaries, scripts, documentation, and assets).
+"Commercial Use" refers to any use of the Software by a commercial entity, or for commercial purposes, or to generate revenue (directly or indirectly).
+
+2. License Grant
+Subject to the terms and conditions of this License, the authors of GPM hereby grant you a worldwide, royalty-free, non-exclusive, non-transferable license to:
+* Download, install, and use the Software for personal, educational, research, and non-commercial purposes.
+* Copy and distribute verbatim copies of the Software for non-commercial purposes.
+
+3. Commercial Use Restrictions
+You are strictly prohibited from using the Software for any Commercial Use. Prohibited activities include, but are not limited to:
+* Installing or running the Software on computers or servers owned, leased, or operated by a for-profit commercial entity.
+* Packaging, hosting, or distributing the Software as part of any commercial product, service, or offering.
+* Using the Software to develop, test, deploy, or manage any commercial services or software products.
+
+Any Commercial Use of this Software requires a separate, explicit written license agreement from the copyright holders.
+
+4. Warranty Disclaimer
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

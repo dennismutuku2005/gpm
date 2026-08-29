@@ -97,19 +97,23 @@ func (m *Manager) Stop() {
 	if m.ipcListener != nil {
 		m.ipcListener.Close()
 	}
+	// Snapshot the process list while holding the lock to avoid
+	// a race between the two lock acquisitions in the original code.
+	procs := make([]*process.Process, 0, len(m.processes))
+	for _, p := range m.processes {
+		procs = append(procs, p)
+	}
 	m.mu.Unlock()
 
 	// Stop all processes in parallel
 	var wg sync.WaitGroup
-	m.mu.Lock()
-	for _, p := range m.processes {
+	for _, p := range procs {
 		wg.Add(1)
 		go func(proc *process.Process) {
 			defer wg.Done()
 			_ = proc.Stop()
 		}(p)
 	}
-	m.mu.Unlock()
 	wg.Wait()
 }
 

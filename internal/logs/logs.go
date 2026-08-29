@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -244,8 +245,7 @@ func LogFilter(filename string, query string, maxLines int) ([]string, error) {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		matchedPattern, _ := filepath.Match(query, line)
-		if query == "" || matchedPattern || (len(line) >= len(query) && matchesQuery(line, query)) {
+		if query == "" || strings.Contains(line, query) {
 			matched = append(matched, line)
 			if len(matched) > maxLines {
 				matched = matched[1:] // keep last maxLines
@@ -254,19 +254,4 @@ func LogFilter(filename string, query string, maxLines int) ([]string, error) {
 	}
 
 	return matched, scanner.Err()
-}
-
-func matchesQuery(line, query string) bool {
-	// Simple substring match for simplicity, can also do regex if needed
-	// In Go: strings.Contains is fast
-	return len(line) >= len(query) && contains(line, query)
-}
-
-func contains(s, substr string) bool {
-	for i := 0; i+len(substr) <= len(s); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

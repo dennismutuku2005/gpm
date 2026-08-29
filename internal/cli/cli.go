@@ -30,6 +30,7 @@ const VersionInfo = "1.0.0"
 
 // Runner handles the execution of GPM CLI commands.
 type Runner struct {
+	Stdin  io.Reader
 	Stdout io.Writer
 	Stderr io.Writer
 }
@@ -37,6 +38,7 @@ type Runner struct {
 // NewRunner creates a new Runner with stdout and stderr output destinations.
 func NewRunner(stdout, stderr io.Writer) *Runner {
 	return &Runner{
+		Stdin:  os.Stdin,
 		Stdout: stdout,
 		Stderr: stderr,
 	}
@@ -412,8 +414,11 @@ func (r *Runner) executeStatus(conn net.Conn) int {
 	fmt.Fprintf(r.Stdout, "Stopped:           %s\n", color.YellowString(strconv.Itoa(data.Stopped)))
 	fmt.Fprintf(r.Stdout, "Failed:            %s\n\n", color.RedString(strconv.Itoa(data.Failed)))
 
-	// Run process list
-	return r.executeList(conn)
+	// The IPC connection is single-use (one request → one response).
+	// Open a fresh connection to fetch the process list.
+	return r.connectAndRun(func(listConn net.Conn) int {
+		return r.executeList(listConn)
+	})
 }
 
 func (r *Runner) printColorfulTable(stats []process.ProcessStats) {
@@ -515,7 +520,7 @@ func (r *Runner) handleLogsCommand(args []string) int {
 	fs := flag.NewFlagSet("logs", flag.ContinueOnError)
 	linesFlag := fs.Int("lines", 100, "Tail last N lines of logs")
 	queryFlag := fs.String("query", "", "Filter logs by matching substring")
-	deleteFlag := flag.Bool("delete", false, "Delete all logs for process")
+	deleteFlag := fs.Bool("delete", false, "Delete all logs for process")
 
 	// Custom parsing if delete is sub-arg: gpm logs delete <name>
 	if name == "delete" {
@@ -637,7 +642,7 @@ func (r *Runner) executeStartupStatus() int {
 
 func (r *Runner) readInput(prompt string) string {
 	fmt.Fprint(r.Stdout, prompt)
-	reader := bufio.NewReader(os.Stdin)
+	reader := bufio.NewReader(r.Stdin)
 	text, _ := reader.ReadString('\n')
 	return strings.TrimSpace(text)
 }

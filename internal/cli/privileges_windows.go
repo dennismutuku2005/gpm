@@ -60,12 +60,19 @@ func configureSystemPath(targetDir string) error {
 	}
 
 	if !inPath {
-		newPath := pathVal
-		if len(newPath) > 0 && !strings.HasSuffix(newPath, ";") {
-			newPath += ";"
+		// Clean up any literal %PATH% or empty elements from previous improper writes
+		rawPaths := strings.Split(pathVal, ";")
+		var cleanPaths []string
+		for _, p := range rawPaths {
+			trimmed := strings.TrimSpace(p)
+			if trimmed != "" && !strings.EqualFold(trimmed, "%PATH%") {
+				cleanPaths = append(cleanPaths, trimmed)
+			}
 		}
-		newPath += targetDir
-		err = k.SetStringValue("Path", newPath)
+		cleanPaths = append(cleanPaths, targetDir)
+		newPath := strings.Join(cleanPaths, ";")
+
+		err = k.SetExpandStringValue("Path", newPath)
 		if err != nil {
 			return fmt.Errorf("failed to write Path to registry: %w", err)
 		}

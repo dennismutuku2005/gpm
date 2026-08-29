@@ -1,0 +1,8 @@
+# Binaries and executables
+gpm
+gpm.exe
+build/
+dist/
+
+# Local configuration overrides
+.doctor_write_test

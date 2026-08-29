@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -112,6 +114,10 @@ func (r *Runner) Run(args []string) int {
 			return r.executeStartupStatus()
 		}
 		return r.executeStartupInstall()
+	case "setup":
+		return r.executeSetup(args[1:])
+	case "doctor":
+		return r.executeDoctor()
 	case "shutdown":
 		return r.connectAndRun(func(conn net.Conn) int {
 			req := &ipc.Request{Command: "shutdown"}
@@ -208,6 +214,8 @@ func (r *Runner) PrintHelp() {
 	fmt.Fprintf(r.Stdout, "  %-18s %s\n", cmdColor("disable <name>"), "Disable process autostart on operating system boot.")
 	fmt.Fprintf(r.Stdout, "  %-18s %s\n", cmdColor("startup"), "Register GPM daemon to start automatically after OS boot.")
 	fmt.Fprintf(r.Stdout, "  %-18s %s\n", cmdColor("startup status"), "Show current OS startup service configuration status.")
+	fmt.Fprintf(r.Stdout, "  %-18s %s\n", cmdColor("setup"), "Interactively install GPM globally on the system (requires Admin/root).")
+	fmt.Fprintf(r.Stdout, "  %-18s %s\n", cmdColor("doctor"), "Run system diagnostics to verify GPM environment and status.")
 	fmt.Fprintf(r.Stdout, "  %-18s %s\n", cmdColor("shutdown"), "Gracefully terminate all processes and stop GPM daemon.")
 	fmt.Fprintf(r.Stdout, "  %-18s %s\n", cmdColor("version"), "Show GPM version.")
 	fmt.Fprintf(r.Stdout, "  %-18s %s\n", cmdColor("help"), "Show this help screen.\n\n")
@@ -613,4 +621,232 @@ func (r *Runner) executeStartupStatus() int {
 
 	fmt.Fprintf(r.Stdout, "GPM Startup Service status: %s\n", color.CyanString(status))
 	return 0
+}
+
+func (r *Runner) readInput(prompt string) string {
+	fmt.Fprint(r.Stdout, prompt)
+	reader := bufio.NewReader(os.Stdin)
+	text, _ := reader.ReadString('\n')
+	return strings.TrimSpace(text)
+}
+
+func (r *Runner) executeSetup(args []string) int {
+	fmt.Fprintln(r.Stdout, color.CyanString("=== GPM System Setup Utility ==="))
+
+	if !isAdmin() {
+		if runtime.GOOS == "windows" {
+			fmt.Fprintln(r.Stderr, color.RedString("Error: Setup must be run as Administrator (elevated Shell)."))
+		} else {
+			fmt.Fprintln(r.Stderr, color.RedString("Error: Setup must be run with root privileges (sudo)."))
+		}
+		return 1
+	}
+
+	confirm := r.readInput("This command will install GPM globally. Do you want to continue? [y/N]: ")
+	confirm = strings.ToLower(confirm)
+	if confirm != "y" && confirm != "yes" {
+		fmt.Fprintln(r.Stdout, color.YellowString("Setup cancelled by user."))
+		return 0
+	}
+
+	var customDir string
+	if runtime.GOOS == "windows" {
+		customDir = r.readInput("Installation directory [C:\\Program Files\\GPM]: ")
+	}
+
+	installDir, targetPath := getInstallDestination(customDir)
+
+	fmt.Fprintf(r.Stdout, "Creating installation directory: %s...\n", installDir)
+	if err := os.MkdirAll(installDir, 0755); err != nil {
+		fmt.Fprint(r.Stderr, color.RedString("Error creating directory: %v\n", err))
+		return 1
+	}
+
+	execPath, err := os.Executable()
+	if err != nil {
+		fmt.Fprint(r.Stderr, color.RedString("Error resolving current executable: %v\n", err))
+		return 1
+	}
+
+	cs, err := config.NewConfigStore()
+	if err == nil {
+		pipeName := ipc.GetIPCPipe(cs.GetConfigDir())
+		conn, err := ipc.DialIPC(pipeName)
+		if err == nil {
+			fmt.Fprintln(r.Stdout, color.YellowString("Existing GPM daemon is running. Shutting down daemon..."))
+			req := &ipc.Request{Command: "shutdown"}
+			_ = ipc.WriteRequest(conn, req)
+			_, _ = ipc.ReadResponse(conn)
+			conn.Close()
+			time.Sleep(1 * time.Second)
+		}
+	}
+
+	fmt.Fprintf(r.Stdout, "Copying GPM binary to %s...\n", targetPath)
+	if err := r.copyFile(execPath, targetPath); err != nil {
+		fmt.Fprint(r.Stderr, color.RedString("Error copying binary: %v\n", err))
+		return 1
+	}
+
+	fmt.Fprintln(r.Stdout, "Configuring system PATH environment variable...")
+	if err := configureSystemPath(installDir); err != nil {
+		fmt.Fprint(r.Stderr, color.RedString("Error configuring PATH: %v\n", err))
+		return 1
+	}
+
+	fmt.Fprintln(r.Stdout, "Registering GPM daemon startup service...")
+	if err := r.executeStartupInstallDirectly(); err != nil {
+		fmt.Fprint(r.Stderr, color.RedString("Error installing startup service: %v\n", err))
+		return 1
+	}
+
+	fmt.Fprintln(r.Stdout, color.GreenString("=== GPM Installation Completed Successfully! ==="))
+	if runtime.GOOS == "windows" {
+		fmt.Fprintln(r.Stdout, color.CyanString("Please restart your terminal/PowerShell session to refresh the environment variables and run 'gpm' globally."))
+	} else {
+		fmt.Fprintln(r.Stdout, color.CyanString("You can now run 'gpm list' and 'gpm status' globally."))
+	}
+
+	return 0
+}
+
+func (r *Runner) copyFile(src, dst string) error {
+	if _, err := os.Stat(dst); err == nil {
+		_ = os.Remove(dst)
+	}
+
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, in)
+	return err
+}
+
+func (r *Runner) executeStartupInstallDirectly() error {
+	cs, err := config.NewConfigStore()
+	if err != nil {
+		return err
+	}
+	sm := service.NewServiceManager()
+	return sm.ConfigureStartup(cs.GetConfigDir())
+}
+
+func (r *Runner) executeDoctor() int {
+	fmt.Fprintln(r.Stdout, color.CyanString("=== GPM Diagnostics (Doctor) ==="))
+	
+	allPassed := true
+
+	fmt.Fprint(r.Stdout, "Checking user privileges: ")
+	if isAdmin() {
+		if runtime.GOOS == "windows" {
+			fmt.Fprintln(r.Stdout, color.GreenString("[✓] Running with Administrator privileges"))
+		} else {
+			fmt.Fprintln(r.Stdout, color.GreenString("[✓] Running with Root (sudo) privileges"))
+		}
+	} else {
+		fmt.Fprintln(r.Stdout, color.YellowString("[!] Running as standard user. (Admin/root is only required for setup/startup configuration)"))
+	}
+
+	fmt.Fprint(r.Stdout, "Checking environment PATH: ")
+	execPath, err := os.Executable()
+	if err != nil {
+		fmt.Fprintln(r.Stdout, color.RedString("[✗] Failed to resolve current executable: %v", err))
+		allPassed = false
+	} else {
+		execDir := filepath.Dir(execPath)
+		pathEnv := os.Getenv("PATH")
+		var separator string
+		if runtime.GOOS == "windows" {
+			separator = ";"
+		} else {
+			separator = ":"
+		}
+		
+		inPath := false
+		execDirClean := strings.ToLower(filepath.Clean(execDir))
+		for _, p := range strings.Split(pathEnv, separator) {
+			if strings.ToLower(filepath.Clean(p)) == execDirClean {
+				inPath = true
+				break
+			}
+		}
+		
+		if inPath {
+			fmt.Fprintln(r.Stdout, color.GreenString("[✓] GPM folder is in your system PATH (%s)", execDir))
+		} else {
+			fmt.Fprintln(r.Stdout, color.YellowString("[!] GPM directory (%s) is NOT in your system PATH environment variable.", execDir))
+			fmt.Fprintln(r.Stdout, "    (Run 'gpm setup' to automatically register GPM in your system PATH)")
+			allPassed = false
+		}
+	}
+
+	fmt.Fprint(r.Stdout, "Checking GPM Daemon status: ")
+	cs, err := config.NewConfigStore()
+	if err != nil {
+		fmt.Fprintln(r.Stdout, color.RedString("[✗] Failed to open Config Store: %v", err))
+		allPassed = false
+	} else {
+		pipeName := ipc.GetIPCPipe(cs.GetConfigDir())
+		conn, err := ipc.DialIPC(pipeName)
+		if err != nil {
+			fmt.Fprintln(r.Stdout, color.RedString("[✗] GPM daemon is offline (unable to connect to IPC pipe/socket)"))
+			fmt.Fprintln(r.Stdout, "    (Try running 'gpm status' or starting a process to auto-boot it)")
+			allPassed = false
+		} else {
+			conn.Close()
+			fmt.Fprintln(r.Stdout, color.GreenString("[✓] GPM daemon is online and responsive"))
+		}
+	}
+
+	fmt.Fprint(r.Stdout, "Checking Startup Service configuration: ")
+	sm := service.NewServiceManager()
+	status, err := sm.GetStartupStatus()
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "access is denied") {
+			fmt.Fprintln(r.Stdout, color.YellowString("[!] GPM auto-start service status could not be queried: Access is denied. (requires Administrator privileges)"))
+		} else {
+			fmt.Fprintln(r.Stdout, color.RedString("[✗] Failed to query service status: %v", err))
+			allPassed = false
+		}
+	} else {
+		if strings.Contains(status, "not_installed") {
+			fmt.Fprintln(r.Stdout, color.YellowString("[!] GPM auto-start service is not installed on this system"))
+			fmt.Fprintln(r.Stdout, "    (Run 'gpm setup' or 'gpm startup' to register auto-start on system boot)")
+			allPassed = false
+		} else {
+			fmt.Fprintln(r.Stdout, color.GreenString("[✓] Auto-start is configured: %s", status))
+		}
+	}
+
+	fmt.Fprint(r.Stdout, "Checking Config Directory permissions: ")
+	if cs != nil {
+		configDir := cs.GetConfigDir()
+		testFile := filepath.Join(configDir, ".doctor_write_test")
+		err := os.WriteFile(testFile, []byte("test"), 0644)
+		if err != nil {
+			fmt.Fprintln(r.Stdout, color.RedString("[✗] Configuration directory (%s) is not writable: %v", configDir, err))
+			allPassed = false
+		} else {
+			_ = os.Remove(testFile)
+			fmt.Fprintln(r.Stdout, color.GreenString("[✓] Configuration directory is writable: %s", configDir))
+		}
+	}
+
+	fmt.Fprintln(r.Stdout)
+	if allPassed {
+		fmt.Fprintln(r.Stdout, color.New(color.FgGreen, color.Bold).Sprint("Result: All diagnostic checks passed! Your GPM installation is healthy."))
+		return 0
+	} else {
+		fmt.Fprintln(r.Stdout, color.New(color.FgYellow, color.Bold).Sprint("Result: Diagnostics completed with warnings/errors. Please review the output above to resolve setup issues."))
+		return 1
+	}
 }

@@ -26,7 +26,7 @@ import (
 )
 
 // VersionInfo contains the current version of GPM.
-const VersionInfo = "0.1.0"
+const VersionInfo = "1.0.0"
 
 // Runner handles the execution of GPM CLI commands.
 type Runner struct {

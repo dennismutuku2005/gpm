@@ -2,6 +2,8 @@
 
 **Go Process Manager (GPM)** is a lightweight, production-ready, cross-platform process management tool written in Go that simplifies running and monitoring background applications. GPM features a resilient daemon, an intuitive command-line interface with color-coded process list tables, log tailing/filtering capabilities, and native service management support for automatically starting registered processes on system boot (via Windows Services and Linux systemd).
 
+**Language-Agnostic Process Management:** GPM is completely language-agnostic and can manage, monitor, and daemonize **any** background process, script, or executable supported by your operating system. Whether it is a Node.js API, a Go binary, a Python backend, a Java application, or a shell script, GPM can run it.
+
 ---
 
 ## Windows Installation and Setup

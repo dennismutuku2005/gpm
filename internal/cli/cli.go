@@ -26,7 +26,7 @@ import (
 )
 
 // VersionInfo contains the current version of GPM.
-const VersionInfo = "1.0.1"
+const VersionInfo = "1.0.2"
 
 // Runner handles the execution of GPM CLI commands.
 type Runner struct {
@@ -216,7 +216,7 @@ func (r *Runner) PrintHelp() {
 	fmt.Fprintf(r.Stdout, "  %-18s %s\n", cmdColor("disable <name>"), "Disable process autostart on operating system boot.")
 	fmt.Fprintf(r.Stdout, "  %-18s %s\n", cmdColor("startup"), "Register GPM daemon to start automatically after OS boot.")
 	fmt.Fprintf(r.Stdout, "  %-18s %s\n", cmdColor("startup status"), "Show current OS startup service configuration status.")
-	fmt.Fprintf(r.Stdout, "  %-18s %s\n", cmdColor("setup"), "Interactively install GPM globally on the system (requires Admin/root).")
+	fmt.Fprintf(r.Stdout, "  %-18s %s\n", cmdColor("setup"), "Interactively install GPM (user-level or system-wide).")
 	fmt.Fprintf(r.Stdout, "  %-18s %s\n", cmdColor("doctor"), "Run system diagnostics to verify GPM environment and status.")
 	fmt.Fprintf(r.Stdout, "  %-18s %s\n", cmdColor("shutdown"), "Gracefully terminate all processes and stop GPM daemon.")
 	fmt.Fprintf(r.Stdout, "  %-18s %s\n", cmdColor("version"), "Show GPM version.")
@@ -648,27 +648,26 @@ func (r *Runner) readInput(prompt string) string {
 }
 
 func (r *Runner) executeSetup(args []string) int {
-	fmt.Fprintln(r.Stdout, color.CyanString("=== GPM System Setup Utility ==="))
+	fmt.Fprintln(r.Stdout, color.CyanString("=== GPM Setup Utility ==="))
 
-	if !isAdmin() {
-		if runtime.GOOS == "windows" {
-			fmt.Fprintln(r.Stderr, color.RedString("Error: Setup must be run as Administrator (elevated Shell)."))
-		} else {
-			fmt.Fprintln(r.Stderr, color.RedString("Error: Setup must be run with root privileges (sudo)."))
-		}
-		return 1
+	if isAdmin() {
+		fmt.Fprintln(r.Stdout, color.GreenString("Mode: System-wide Installation (Administrator/root)"))
+	} else {
+		fmt.Fprintln(r.Stdout, color.YellowString("Mode: User-level Installation (No Admin/root required)"))
 	}
 
-	confirm := r.readInput("This command will install GPM globally. Do you want to continue? [y/N]: ")
+	confirm := r.readInput("This command will install GPM. Do you want to continue? [y/N]: ")
 	confirm = strings.ToLower(confirm)
 	if confirm != "y" && confirm != "yes" {
 		fmt.Fprintln(r.Stdout, color.YellowString("Setup cancelled by user."))
 		return 0
 	}
 
+	defaultDir, _ := getInstallDestination("")
 	var customDir string
 	if runtime.GOOS == "windows" {
-		customDir = r.readInput("Installation directory [C:\\Program Files\\GPM]: ")
+		prompt := fmt.Sprintf("Installation directory [%s]: ", defaultDir)
+		customDir = r.readInput(prompt)
 	}
 
 	installDir, targetPath := getInstallDestination(customDir)
@@ -770,7 +769,7 @@ func (r *Runner) executeDoctor() int {
 			fmt.Fprintln(r.Stdout, color.GreenString("[✓] Running with Root (sudo) privileges"))
 		}
 	} else {
-		fmt.Fprintln(r.Stdout, color.YellowString("[!] Running as standard user. (Admin/root is only required for setup/startup configuration)"))
+		fmt.Fprintln(r.Stdout, color.GreenString("[✓] Running as standard user (user-level install mode)"))
 	}
 
 	fmt.Fprint(r.Stdout, "Checking environment PATH: ")

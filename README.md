@@ -8,7 +8,7 @@
 
 ## Windows Installation and Setup
 
-Run PowerShell as **Administrator** and execute:
+Run PowerShell (standard user or Administrator) and execute:
 
 ```powershell
 Invoke-WebRequest -Uri "https://github.com/dennismutuku2005/gpm/releases/latest/download/gpm-windows-amd64.exe" -OutFile "$HOME\Downloads\gpm-windows-amd64.exe"
@@ -16,27 +16,19 @@ cd $HOME\Downloads
 .\gpm-windows-amd64.exe setup
 ```
 
-*The setup utility copies `gpm.exe` to `C:\Program Files\GPM` (configurable), updates your system PATH, and configures the Windows startup service. Restart your PowerShell session after installation.*
+*Admin rights are **optional**. Running as standard user installs GPM to `%LocalAppData%\GPM`, updates User PATH, and sets up user logon autostart. Running as Administrator installs system-wide to `C:\Program Files\GPM` and configures a Windows Service.*
 
 ---
 
 ## Linux Installation and Setup
 
-### Using the Pre-compiled Binary
+```bash
+curl -L -o gpm-linux-amd64 https://github.com/dennismutuku2005/gpm/releases/latest/download/gpm-linux-amd64
+chmod +x gpm-linux-amd64
+./gpm-linux-amd64 setup
+```
 
-1. **Download the Linux binary**:
-   ```bash
-   curl -L -o gpm-linux-amd64 https://github.com/dennismutuku2005/gpm/releases/latest/download/gpm-linux-amd64
-   ```
-2. **Make it executable**:
-   ```bash
-   chmod +x gpm-linux-amd64
-   ```
-3. **Run the interactive setup with root privileges**:
-   ```bash
-   sudo ./gpm-linux-amd64 setup
-   ```
-   * This utility will prompt you to confirm installation. It copies the binary to /usr/local/bin/gpm and registers the daemon automatically using systemd.
+*Running without `sudo` installs to `~/.local/bin` for the current user. Running with `sudo ./gpm-linux-amd64 setup` installs globally to `/usr/local/bin` and configures systemd autostart.*
 
 ---
 

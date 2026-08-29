@@ -20,9 +20,14 @@ func configureSystemPath(targetDir string) error {
 
 // getInstallDestination returns the target binary copy destination.
 func getInstallDestination(customDir string) (string, string) {
-	dir := "/usr/local/bin"
-	if customDir != "" {
-		dir = customDir
+	dir := customDir
+	if dir == "" {
+		if isAdmin() {
+			dir = "/usr/local/bin"
+		} else {
+			home, _ := os.UserHomeDir()
+			dir = filepath.Join(home, ".local", "bin")
+		}
 	}
 	return dir, filepath.Join(dir, "gpm")
 }

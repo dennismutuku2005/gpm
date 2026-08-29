@@ -5,6 +5,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -22,16 +23,27 @@ func isAdmin() bool {
 	return true
 }
 
-// configureSystemPath registers the GPM installation folder in the Windows system environment PATH registry key.
+// configureSystemPath registers the GPM installation folder in the Windows environment PATH registry key.
 func configureSystemPath(targetDir string) error {
-	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `System\CurrentControlSet\Control\Session Manager\Environment`, registry.QUERY_VALUE|registry.SET_VALUE)
+	var rootKey registry.Key
+	var subKey string
+
+	if isAdmin() {
+		rootKey = registry.LOCAL_MACHINE
+		subKey = `System\CurrentControlSet\Control\Session Manager\Environment`
+	} else {
+		rootKey = registry.CURRENT_USER
+		subKey = `Environment`
+	}
+
+	k, err := registry.OpenKey(rootKey, subKey, registry.QUERY_VALUE|registry.SET_VALUE)
 	if err != nil {
 		return fmt.Errorf("failed to open registry key: %w", err)
 	}
 	defer k.Close()
 
 	pathVal, _, err := k.GetStringValue("Path")
-	if err != nil {
+	if err != nil && err != registry.ErrNotExist {
 		return fmt.Errorf("failed to read Path registry value: %w", err)
 	}
 
@@ -47,7 +59,7 @@ func configureSystemPath(targetDir string) error {
 
 	if !inPath {
 		newPath := pathVal
-		if !strings.HasSuffix(newPath, ";") && len(newPath) > 0 {
+		if len(newPath) > 0 && !strings.HasSuffix(newPath, ";") {
 			newPath += ";"
 		}
 		newPath += targetDir
@@ -62,9 +74,18 @@ func configureSystemPath(targetDir string) error {
 
 // getInstallDestination returns the target binary copy destination.
 func getInstallDestination(customDir string) (string, string) {
-	dir := `C:\Program Files\GPM`
-	if customDir != "" {
-		dir = customDir
+	dir := customDir
+	if dir == "" {
+		if isAdmin() {
+			dir = `C:\Program Files\GPM`
+		} else {
+			localAppData := os.Getenv("LOCALAPPDATA")
+			if localAppData == "" {
+				home, _ := os.UserHomeDir()
+				localAppData = filepath.Join(home, "AppData", "Local")
+			}
+			dir = filepath.Join(localAppData, "GPM")
+		}
 	}
 	return dir, filepath.Join(dir, "gpm.exe")
 }

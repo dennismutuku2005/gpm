@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"golang.org/x/sys/windows/registry"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/mgr"
 
@@ -72,7 +73,7 @@ loop:
 	return
 }
 
-// ConfigureStartup installs GPM as a Windows Service pointing to the current executable.
+// ConfigureStartup installs GPM as a Windows Service pointing to the current executable, or as User Autostart registry key if non-admin.
 func (w *WindowsServiceManager) ConfigureStartup(configDir string) error {
 	execPath, err := os.Executable()
 	if err != nil {
@@ -84,90 +85,98 @@ func (w *WindowsServiceManager) ConfigureStartup(configDir string) error {
 	}
 
 	m, err := mgr.Connect()
-	if err != nil {
-		return fmt.Errorf("failed to connect to SCM: %w (make sure you are running as Administrator)", err)
-	}
-	defer m.Disconnect()
-
-	// Check if already exists
-	s, err := m.OpenService("GPM")
 	if err == nil {
-		s.Close()
-		return fmt.Errorf("GPM Windows Service is already installed")
+		defer m.Disconnect()
+
+		// Check if already exists
+		s, err := m.OpenService("GPM")
+		if err == nil {
+			s.Close()
+			return fmt.Errorf("GPM Windows Service is already installed")
+		}
+
+		cfg := mgr.Config{
+			DisplayName:      "Go Process Manager",
+			Description:      "Manages and monitors background Go applications.",
+			StartType:        mgr.StartAutomatic,
+			ServiceStartName: "", // LocalSystem
+		}
+
+		// We pass "daemon" and the configuration directory override arguments
+		s, err = m.CreateService("GPM", execPath, cfg, "daemon", "--config-dir", configDir)
+		if err == nil {
+			defer s.Close()
+			_ = s.Start()
+			return nil
+		}
 	}
 
-	cfg := mgr.Config{
-		DisplayName:      "Go Process Manager",
-		Description:      "Manages and monitors background Go applications.",
-		StartType:        mgr.StartAutomatic,
-		ServiceStartName: "", // LocalSystem
-	}
-
-	// We pass "daemon" and the configuration directory override arguments
-	s, err = m.CreateService("GPM", execPath, cfg, "daemon", "--config-dir", configDir)
+	// Fallback for non-admin user: Register in HKCU Run registry key for user logon autostart
+	k, err := registry.OpenKey(registry.CURRENT_USER, `Software\Microsoft\Windows\CurrentVersion\Run`, registry.QUERY_VALUE|registry.SET_VALUE)
 	if err != nil {
-		return fmt.Errorf("failed to install service: %w", err)
+		return nil // Non-critical: Daemon will auto-boot on first gpm command anyway
 	}
-	defer s.Close()
+	defer k.Close()
 
-	// Start the service
-	err = s.Start()
-	if err != nil {
-		return fmt.Errorf("service installed successfully, but failed to start: %w", err)
-	}
-
+	cmd := fmt.Sprintf(`"%s" daemon --config-dir "%s"`, execPath, configDir)
+	_ = k.SetStringValue("GPMDaemon", cmd)
 	return nil
 }
 
-// GetStartupStatus checks the SCM for the GPM service and its state.
+// GetStartupStatus checks the SCM for the GPM service and its state, or HKCU user registry autostart key.
 func (w *WindowsServiceManager) GetStartupStatus() (string, error) {
 	m, err := mgr.Connect()
-	if err != nil {
-		return "", fmt.Errorf("failed to connect to SCM: %w", err)
-	}
-	defer m.Disconnect()
+	if err == nil {
+		defer m.Disconnect()
 
-	s, err := m.OpenService("GPM")
-	if err != nil {
-		return "not_installed (SCM service 'GPM' not found)", nil
-	}
-	defer s.Close()
+		s, err := m.OpenService("GPM")
+		if err == nil {
+			defer s.Close()
 
-	status, err := s.Query()
-	if err != nil {
-		return "", fmt.Errorf("failed to query service status: %w", err)
-	}
+			status, err := s.Query()
+			if err == nil {
+				cfg, err := s.Config()
+				if err == nil {
+					var state string
+					switch status.State {
+					case svc.Stopped:
+						state = "Stopped"
+					case svc.StartPending:
+						state = "StartPending"
+					case svc.StopPending:
+						state = "StopPending"
+					case svc.Running:
+						state = "Running"
+					default:
+						state = "Unknown"
+					}
 
-	cfg, err := s.Config()
-	if err != nil {
-		return "", fmt.Errorf("failed to query service config: %w", err)
-	}
+					var startType string
+					switch cfg.StartType {
+					case mgr.StartAutomatic:
+						startType = "Automatic"
+					case mgr.StartManual:
+						startType = "Manual"
+					case mgr.StartDisabled:
+						startType = "Disabled"
+					default:
+						startType = "Unknown"
+					}
 
-	var state string
-	switch status.State {
-	case svc.Stopped:
-		state = "Stopped"
-	case svc.StartPending:
-		state = "StartPending"
-	case svc.StopPending:
-		state = "StopPending"
-	case svc.Running:
-		state = "Running"
-	default:
-		state = "Unknown"
-	}
-
-	var startType string
-	switch cfg.StartType {
-	case mgr.StartAutomatic:
-		startType = "Automatic"
-	case mgr.StartManual:
-		startType = "Manual"
-	case mgr.StartDisabled:
-		startType = "Disabled"
-	default:
-		startType = "Unknown"
+					return fmt.Sprintf("installed (Windows Service: %s, StartType: %s)", state, startType), nil
+				}
+			}
+		}
 	}
 
-	return fmt.Sprintf("installed (Windows Service: %s, StartType: %s)", state, startType), nil
+	// Check HKCU Run key for User Autostart
+	k, err := registry.OpenKey(registry.CURRENT_USER, `Software\Microsoft\Windows\CurrentVersion\Run`, registry.QUERY_VALUE)
+	if err == nil {
+		defer k.Close()
+		if val, _, err := k.GetStringValue("GPMDaemon"); err == nil && val != "" {
+			return "installed (User Autostart registry key)", nil
+		}
+	}
+
+	return "not_installed (Auto-start service/registry key not configured)", nil
 }

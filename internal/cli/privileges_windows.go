@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"unsafe"
 
 	"golang.org/x/sys/windows/registry"
 	"golang.org/x/sys/windows/svc/mgr"
@@ -67,9 +69,33 @@ func configureSystemPath(targetDir string) error {
 		if err != nil {
 			return fmt.Errorf("failed to write Path to registry: %w", err)
 		}
+		broadcastEnvironmentChange()
 	}
 
 	return nil
+}
+
+func broadcastEnvironmentChange() {
+	user32 := syscall.NewLazyDLL("user32.dll")
+	sendMessageTimeout := user32.NewProc("SendMessageTimeoutW")
+
+	envStr, _ := syscall.UTF16PtrFromString("Environment")
+	var result uintptr
+	const (
+		HWND_BROADCAST   = 0xffff
+		WM_SETTINGCHANGE = 0x001A
+		SMTO_ABORTIFHUNG = 0x0002
+	)
+
+	_, _, _ = sendMessageTimeout.Call(
+		uintptr(HWND_BROADCAST),
+		uintptr(WM_SETTINGCHANGE),
+		0,
+		uintptr(unsafe.Pointer(envStr)),
+		uintptr(SMTO_ABORTIFHUNG),
+		uintptr(5000),
+		uintptr(unsafe.Pointer(&result)),
+	)
 }
 
 // getInstallDestination returns the target binary copy destination.

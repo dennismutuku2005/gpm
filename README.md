@@ -13,7 +13,7 @@
 ```bash
 curl -L -o gpm-linux-amd64 https://github.com/dennismutuku2005/gpm/releases/latest/download/gpm-linux-amd64
 chmod +x gpm-linux-amd64
-./gpm-linux-amd64 setup
+./gpm-linux-amd64 setup -y
 ```
 
 *Running without `sudo` installs GPM to `~/.local/bin` for the current user. Running with `sudo ./gpm-linux-amd64 setup` installs GPM globally to `/usr/local/bin` and configures systemd autostart on system boot.*

@@ -9,6 +9,7 @@ import (
 	"github.com/dennismutuku2005/gpm/internal/cli"
 	"github.com/dennismutuku2005/gpm/internal/config"
 	"github.com/dennismutuku2005/gpm/internal/manager"
+	"github.com/dennismutuku2005/gpm/internal/service"
 )
 
 func main() {
@@ -35,6 +36,10 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Failed to initialize config store: %v\n", err)
 			os.Exit(1)
 		}
+
+		// Automatically register GPM systemd service for boot autostart
+		sm := service.NewServiceManager()
+		_ = sm.ConfigureStartup(cs.GetConfigDir())
 
 		m := manager.NewManager(cs)
 		fmt.Printf("Starting GPM daemon (config: %s)...\n", cs.GetConfigDir())

@@ -656,11 +656,21 @@ func (r *Runner) executeSetup(args []string) int {
 		fmt.Fprintln(r.Stdout, color.YellowString("Mode: User-level Installation (No Admin/root required)"))
 	}
 
-	confirm := r.readInput("This command will install GPM. Do you want to continue? [y/N]: ")
-	confirm = strings.ToLower(confirm)
-	if confirm != "y" && confirm != "yes" {
-		fmt.Fprintln(r.Stdout, color.YellowString("Setup cancelled by user."))
-		return 0
+	autoConfirm := false
+	for _, arg := range args {
+		if arg == "-y" || arg == "--yes" || arg == "-f" || arg == "--force" {
+			autoConfirm = true
+			break
+		}
+	}
+
+	if !autoConfirm {
+		confirm := r.readInput("This command will install GPM. Do you want to continue? [y/N]: ")
+		confirm = strings.ToLower(confirm)
+		if confirm != "y" && confirm != "yes" {
+			fmt.Fprintln(r.Stdout, color.YellowString("Setup cancelled by user."))
+			return 0
+		}
 	}
 
 	defaultDir, _ := getInstallDestination("")

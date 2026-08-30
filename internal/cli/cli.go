@@ -223,7 +223,7 @@ func (r *Runner) PrintHelp() {
 	fmt.Fprintf(r.Stdout, "  %-18s %s\n", cmdColor("help"), "Show this help screen.\n\n")
 
 	fmt.Fprintln(r.Stdout, bold("Examples:"))
-	fmt.Fprintf(r.Stdout, "  gpm start api --cmd \"C:\\Apps\\api.exe\" --dir \"C:\\Apps\"\n")
+	fmt.Fprintf(r.Stdout, "  gpm start api --cmd \"/usr/bin/node app.js\" --dir \"/var/www/api\"\n")
 	fmt.Fprintf(r.Stdout, "  gpm start api\n")
 	fmt.Fprintf(r.Stdout, "  gpm logs api --lines 50\n")
 	fmt.Fprintf(r.Stdout, "  gpm logs api --query \"panic\"\n")
@@ -664,13 +664,7 @@ func (r *Runner) executeSetup(args []string) int {
 	}
 
 	defaultDir, _ := getInstallDestination("")
-	var customDir string
-	if runtime.GOOS == "windows" {
-		prompt := fmt.Sprintf("Installation directory [%s]: ", defaultDir)
-		customDir = r.readInput(prompt)
-	}
-
-	installDir, targetPath := getInstallDestination(customDir)
+	installDir, targetPath := getInstallDestination(defaultDir)
 
 	fmt.Fprintf(r.Stdout, "Creating installation directory: %s...\n", installDir)
 	if err := os.MkdirAll(installDir, 0755); err != nil {
@@ -717,11 +711,7 @@ func (r *Runner) executeSetup(args []string) int {
 	}
 
 	fmt.Fprintln(r.Stdout, color.GreenString("=== GPM Installation Completed Successfully! ==="))
-	if runtime.GOOS == "windows" {
-		fmt.Fprintln(r.Stdout, color.CyanString("Please restart your terminal/PowerShell session to refresh the environment variables and run 'gpm' globally."))
-	} else {
-		fmt.Fprintln(r.Stdout, color.CyanString("You can now run 'gpm list' and 'gpm status' globally."))
-	}
+	fmt.Fprintln(r.Stdout, color.CyanString("You can now run 'gpm list' and 'gpm status' globally."))
 
 	return 0
 }
@@ -763,11 +753,7 @@ func (r *Runner) executeDoctor() int {
 
 	fmt.Fprint(r.Stdout, "Checking user privileges: ")
 	if isAdmin() {
-		if runtime.GOOS == "windows" {
-			fmt.Fprintln(r.Stdout, color.GreenString("[✓] Running with Administrator privileges"))
-		} else {
-			fmt.Fprintln(r.Stdout, color.GreenString("[✓] Running with Root (sudo) privileges"))
-		}
+		fmt.Fprintln(r.Stdout, color.GreenString("[✓] Running with Root (sudo) privileges"))
 	} else {
 		fmt.Fprintln(r.Stdout, color.GreenString("[✓] Running as standard user (user-level install mode)"))
 	}
@@ -780,12 +766,7 @@ func (r *Runner) executeDoctor() int {
 	} else {
 		execDir := filepath.Dir(execPath)
 		pathEnv := os.Getenv("PATH")
-		var separator string
-		if runtime.GOOS == "windows" {
-			separator = ";"
-		} else {
-			separator = ":"
-		}
+		separator := ":"
 		
 		inPath := false
 		execDirClean := strings.ToLower(filepath.Clean(execDir))

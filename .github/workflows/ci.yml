@@ -10,14 +10,8 @@ on:
 
 jobs:
   build-and-test:
-    name: Build & Test
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        go-version: ['1.25.0']
-
+    name: Build & Test (Linux Ubuntu)
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -25,7 +19,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: ${{ matrix.go-version }}
+        go-version: '1.25.0'
         cache: true
 
     - name: Verify dependencies
@@ -61,13 +55,14 @@ jobs:
       run: |
         mkdir -p dist
         GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/gpm-linux-amd64 cmd/gpm/main.go
-        GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/gpm-windows-amd64.exe cmd/gpm/main.go
+        GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/gpm-linux-arm64 cmd/gpm/main.go
 
     - name: Upload to GitHub Release
       uses: softprops/action-gh-release@v2
       with:
         files: |
           dist/gpm-linux-amd64
-          dist/gpm-windows-amd64.exe
+          dist/gpm-linux-arm64
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

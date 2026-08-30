@@ -4,25 +4,18 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/dennismutuku2005/gpm/internal/cli"
 	"github.com/dennismutuku2005/gpm/internal/config"
 	"github.com/dennismutuku2005/gpm/internal/manager"
-	"github.com/dennismutuku2005/gpm/internal/service"
 )
 
 func main() {
-	// 1. If running as Windows Service, run service daemon immediately
-	if service.IsWindowsService() {
-		cs, err := config.NewConfigStore()
-		if err != nil {
-			os.Exit(1)
-		}
-		m := manager.NewManager(cs)
-		if err := service.RunWindowsService(m); err != nil {
-			os.Exit(1)
-		}
-		os.Exit(0)
+	// 1. Enforce Linux target OS check
+	if runtime.GOOS != "linux" {
+		fmt.Fprintf(os.Stderr, "Error: GPM (Go Process Manager) is designed exclusively for Linux (Ubuntu). Operating system %q is not supported.\n", runtime.GOOS)
+		os.Exit(1)
 	}
 
 	// 2. Parse arguments
@@ -57,3 +50,4 @@ func main() {
 	runner := cli.NewRunner(os.Stdout, os.Stderr)
 	os.Exit(runner.Run(args))
 }
+

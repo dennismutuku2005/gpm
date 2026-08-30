@@ -1,9 +1,15 @@
 #!/bin/bash
 set -e
 
-# Go Process Manager (GPM) Linux Installer
+# Go Process Manager (GPM) Linux (Ubuntu) Installer
 
-echo "=== GPM Linux Installation Start ==="
+echo "=== GPM Linux (Ubuntu) Installation Start ==="
+
+# Check OS target
+if [ "$(uname -s)" != "Linux" ]; then
+    echo "Error: GPM is supported exclusively on Linux (Ubuntu)."
+    exit 1
+fi
 
 # Check if Go is installed
 if ! command -v go &> /dev/null; then
@@ -12,7 +18,7 @@ if ! command -v go &> /dev/null; then
 fi
 
 # Build gpm
-echo "Compiling GPM..."
+echo "Compiling GPM binary..."
 go build -o gpm cmd/gpm/main.go
 
 # Install binary
@@ -34,5 +40,6 @@ echo "Verifying GPM installation..."
 gpm version
 gpm status
 
-echo "=== GPM Linux Installation Completed Successfully! ==="
+echo "=== GPM Linux (Ubuntu) Installation Completed Successfully! ==="
 echo "You can now run 'gpm list' and 'gpm status' globally."
+

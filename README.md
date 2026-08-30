@@ -66,6 +66,23 @@ Once installed, use `gpm` to start and manage background processes:
 
 ---
 
+## Development & Building
+
+GPM relies on Linux system APIs (`systemd`, Unix domain sockets, process signals). When developing or building GPM on Windows or macOS, set `GOOS=linux` during compilation:
+
+**PowerShell (Windows):**
+```powershell
+$env:GOOS="linux"; go build ./...
+```
+
+**Bash / Linux / WSL:**
+```bash
+GOOS=linux go build ./...
+```
+
+---
+
+
 ## License
 
 This project is licensed under the GPM Non-Commercial License. See the [LICENSE](LICENSE) file for details.
